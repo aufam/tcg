@@ -1,6 +1,7 @@
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
 #include <boost/uuid.hpp>
+#include <boost/asio/experimental/concurrent_channel.hpp>
 #include <mup/html.h>
 #include "main.h"
 
@@ -11,13 +12,19 @@ import cpx.fmt;
 import cpx.yy_json;
 import fmt;
 
-int main() {
-    boost::asio::io_context                                 io;
-    brb::Engine                                             engine{io};
-    std::mutex                                              mtx;
-    std::unordered_map<std::string, std::shared_ptr<State>> states;
+struct Message {
+    std::string id;
+};
 
-    std::unordered_map<std::string, std::vector<std::shared_ptr<brb::ws_stream>>> ws_streams;
+int main() {
+    boost::asio::io_context io;
+    brb::Engine             engine{io};
+    std::mutex              mtx;
+
+    std::unordered_map<std::string, std::shared_ptr<State>>          states;
+    std::unordered_map<std::string, std::shared_ptr<brb::ws_stream>> ws_streams;
+
+    brb::asio::experimental::concurrent_channel<void(boost::system::error_code, Message)> ch{io};
 
     const Deck sawit = Deck::Sawit(), solo = Deck::Solo();
 
@@ -108,6 +115,12 @@ int main() {
         co_return;
     });
 
+    engine.route(brb::verb::get, "/clean-modal", [&](brb::Context &c) -> brb::awaitable<void> {
+        c.response_string().body() = CleanModal();
+        c.res().set(brb::field::content_type, "text/html");
+        co_return;
+    });
+
     engine.route(brb::verb::get, "/decks/sawit", [&](brb::Context &c) -> brb::awaitable<void> {
         std::lock_guard<std::mutex> lock(mtx);
         c.response_string().body() = remove_oob(sawit.Show());
@@ -137,7 +150,7 @@ int main() {
         co_await ws->async_accept(c.parser_empty().get());
 
         {
-            auto lock = std::unique_lock<std::mutex>(mtx);
+            auto lock = std::lock_guard<std::mutex>(mtx);
 
             auto &self = states.at(id);
             if (states.at(id)->opp == nullptr) {
@@ -153,9 +166,15 @@ int main() {
                     }
                 }
             }
-        }
 
-        do {
+            ws_streams[id] = ws;
+        }
+        cpx::defer _ = [&]() {
+            std::lock_guard<std::mutex> lock(mtx);
+            ws_streams.erase(id);
+        };
+
+        while (engine.is_running) {
             {
                 auto  lock   = std::unique_lock<std::mutex>(mtx);
                 auto &outbox = states.at(id)->outbox;
@@ -191,15 +210,22 @@ int main() {
                 auto msg = s.ActionChooseDeck(deck_id);
                 s.outbox.push_back(msg);
             }
-        } while (ws->is_open());
+        };
     });
 
+    engine.is_running   = true;
     const auto run_opts = brb::Engine::run_opts{
         .host                 = "0.0.0.0",
-        .port                 = 3001,
+        .port                 = 3000,
         .cancellation_signals = {SIGINT, SIGTERM},
     };
     boost::asio::co_spawn(io, engine.run(run_opts), boost::asio::detached);
+
+    auto consumer = [&]() -> brb::awaitable<void> {
+        while (engine.is_running) {
+            Message msg = co_await ch.async_receive();
+        }
+    };
 
     io.run();
 }

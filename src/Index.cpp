@@ -60,7 +60,7 @@ std::string State::DeckSelect() const {
     return main_<(id = "screen", hx_swap_oob = "true")>{section<(class_ = "deck-select")>(
         h2<>{"Pick Your Starter Deck"},
 
-        div_<(class_ = "decks")>{mup::each(decks, [](Deck &d) {
+        div_<(class_ = "decks")>{mup::each(decks, [](const Deck &d) {
             return form<"hx-ws:send">(
                 (class_ = "deck " + d.css),
 
@@ -125,7 +125,7 @@ std::string State::Board() const {
                 },
 
                 div_<(class_ = "zone victory", id = "my-victory", R"(data-label="Victory")")>{
-                    mup::each(me.victory, [&](Card &c) { return c.Render("mini", "", false); })
+                    mup::each(me.victory, [&](const Card &c) { return c.Render("mini", "", false); })
                 }
             ),
 
@@ -146,7 +146,7 @@ std::string State::Board() const {
 
 std::string State::Hand() const {
     return section<(id = "hand", class_ = "hand", hx_swap_oob = "true")>{
-        mup::each(hand, [&](Card &c) -> std::string {
+        mup::each(hand, [&](const Card &c) -> std::string {
             return form<"hx-ws:send", (hx_trigger = "click")>(
                 (class_ = "hand-slot" + std::string(c.type == "spell" || battle.has_value() ? " blocked" : "")),
 

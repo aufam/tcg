@@ -11,11 +11,11 @@ std::string State::Result(std::string log_line) const {
     ret += div_<(id = "opp-spells", R"(data-label="Spells")", class_ = "zone spell", hx_swap_oob = "true")>{};
 
     ret += div_<(id = "my-victory", R"(data-label="Victory")", class_ = "zone victory", hx_swap_oob = "true")>{
-        mup::each(victory, [&](Card &c) { return c.Render("mini"); })
+        mup::each(victory, [&](const Card &c) { return c.Render("mini"); })
     };
 
     ret += div_<(id = "opp-victory", R"(data-label="Victory")", class_ = "zone victory", hx_swap_oob = "true")>{
-        mup::each(opp->victory, [&](Card &c) { return c.Render("mini"); })
+        mup::each(opp->victory, [&](const Card &c) { return c.Render("mini"); })
     };
 
     ret += div_<(id = "my-grave", class_ = "pile grave", hx_swap_oob = "true")>{

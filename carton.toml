@@ -5,7 +5,7 @@ edition = 23
 name = "tcg"
 
 [dependencies]
-brb = { path = "/home/aufa/brb", features = ["static_files"] }
+brb = { path = "/Users/macbook/brb", features = ["static_files"] }
 boost = { version = "1.92.0" }
 cpx = { version = "0.2.0", features = ["json", "fmt"] }
 mup = { version = "0.1.2" }

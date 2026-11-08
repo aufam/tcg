@@ -15,7 +15,7 @@ std::string Deck::Show() const {
         ),
 
         div_<(class_ = "deck-grid")>{
-            mup::each(cards, [](Card &c) { return c.Render("mini"); }),
+            mup::each(cards, [](const Card &c) { return c.Render("mini"); }),
         }
     ));
 }
